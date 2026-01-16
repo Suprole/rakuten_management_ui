@@ -1,0 +1,9 @@
+# 余計なファイルをpushしない（gas/は基本 .gs と appsscript.json のみ）
+**/node_modules/**
+**/.DS_Store
+**/*.log
+README.md
+.clasp.json
+.claspignore
+
+

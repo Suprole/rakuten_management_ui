@@ -1,0 +1,73 @@
+/**
+ * 仕様書 §6.2 webui_products_cache（全列必須）
+ */
+function productsCacheHeaders_() {
+  return [
+    "product_code",
+    "product_name",
+    "representative_sku",
+    "sku_count",
+    "oos_sku_count",
+    "shipping_type_mode",
+    "rating",
+    "memo",
+    "note_updated_at",
+    "stock_sum",
+    "sales_units_m",
+    "sales_units_lm",
+    "sales_amount_m",
+    "sales_amount_lm",
+    "profit_m",
+    "profit_lm",
+    "access_m",
+    "access_lm",
+    "cv_m",
+    "cv_lm",
+    "bounce_m",
+    "bounce_lm",
+    "stay_m",
+    "stay_lm",
+    "fav_add_m",
+    "fav_add_lm",
+    "fav_total",
+    "orders_total_m",
+    "orders_total_lm",
+    "orders_new_m",
+    "orders_new_lm",
+    "orders_rep_m",
+    "orders_rep_lm",
+    "reviews_post_m",
+    "reviews_post_lm",
+    "reviews_total",
+    "min_setting_margin",
+    "max_setting_margin",
+    "min_setting_unit_profit",
+    "access_diff",
+    "cv_diff",
+    "sales_units_diff",
+    "profit_diff",
+    "new_ratio_m",
+    "rep_ratio_m",
+    "badges",
+  ]
+}
+
+function skusCacheHeaders_() {
+  return [
+    "product_code",
+    "sku_code",
+    "shipping_type",
+    "cost_ex_tax",
+    "stock",
+    "stock0_days",
+    "price_in_tax",
+    "sales_units_m",
+    "sales_units_lm",
+    "sales_amount_m",
+    "profit_m",
+    "setting_unit_profit",
+    "setting_margin",
+    "updated_at",
+  ]
+}
+
