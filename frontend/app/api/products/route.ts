@@ -100,6 +100,7 @@ export async function GET(req: Request) {
     const products = snapshot.products.map((p) => ({
       product_code: asString(p["product_code"]),
       representative_sku: asString(p["representative_sku"]),
+      sku_count: asNumber(p["sku_count"]),
       rating: ((notesByProduct[asString(p["product_code"])]?.rating ?? asString(p["rating"])) || null) as
         | "S"
         | "A"

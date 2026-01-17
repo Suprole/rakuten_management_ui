@@ -322,7 +322,7 @@ export function ProductList({ products, onSelectProduct }: ProductListProps) {
             <thead className="bg-muted">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">商品管理番号</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">代表SKU</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">SKU数</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">評価</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">商品名</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">
@@ -372,7 +372,7 @@ export function ProductList({ products, onSelectProduct }: ProductListProps) {
                   className="hover:bg-accent cursor-pointer transition-colors"
                 >
                   <td className="px-4 py-3 text-sm font-mono text-foreground">{product.product_code}</td>
-                  <td className="px-4 py-3 text-sm font-mono text-muted-foreground">{product.representative_sku}</td>
+                  <td className="px-4 py-3 text-sm text-right text-foreground">{product.sku_count.toLocaleString()}</td>
                   <td className="px-4 py-3">
                     {product.rating && (
                       <Badge className={cn("text-sm font-bold", getRatingColor(product.rating))}>{product.rating}</Badge>
