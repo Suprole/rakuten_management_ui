@@ -11,23 +11,35 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<ProductSummary | null>(null)
 
-  useEffect(() => {
-    const run = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const res = await fetch("/api/products")
-        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-        const data = (await res.json()) as { products: ProductSummary[] }
-        setProducts(data.products ?? [])
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "unknown error")
-      } finally {
-        setLoading(false)
-      }
+  const fetchProducts = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const res = await fetch("/api/products", { cache: "no-store" })
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+      const data = (await res.json()) as { products: ProductSummary[] }
+      setProducts(data.products ?? [])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "unknown error")
+    } finally {
+      setLoading(false)
     }
-    run()
+  }
+
+  // 初回ロード
+  useEffect(() => {
+    fetchProducts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 詳細→一覧へ戻ったタイミングで再取得（評価/メモなどの更新を反映）
+  useEffect(() => {
+    if (selected === null) {
+      // 過剰fetchを避けるため、一覧表示中のみトリガ（初回もここに入るが許容）
+      fetchProducts()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected])
 
   const title = useMemo(() => (selected ? "商品詳細" : "商品一覧"), [selected])
 

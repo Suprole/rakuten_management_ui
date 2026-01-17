@@ -87,11 +87,27 @@ export async function GET(req: Request) {
       return Response.json({ product, generated_at: snapshot.generated_at })
     }
 
+    // notesを一覧にも反映（保存後すぐ見えるように）
+    const notesByProduct: Record<string, { rating: string | null }> = {}
+    for (const n of snapshot.notes) {
+      const pc = asString(n["product_code"]).trim()
+      if (!pc) continue
+      const r = (asString(n["rating"]) || "").trim()
+      notesByProduct[pc] = { rating: r || null }
+    }
+
     // 一覧用（軽量）
     const products = snapshot.products.map((p) => ({
       product_code: asString(p["product_code"]),
       representative_sku: asString(p["representative_sku"]),
-      rating: (asString(p["rating"]) || null) as "S" | "A" | "B" | "C" | "D" | "E" | null,
+      rating: ((notesByProduct[asString(p["product_code"])]?.rating ?? asString(p["rating"])) || null) as
+        | "S"
+        | "A"
+        | "B"
+        | "C"
+        | "D"
+        | "E"
+        | null,
       product_name: asString(p["product_name"]),
       stock_sum: asNumber(p["stock_sum"]),
       sales_units_m: asNumber(p["sales_units_m"]),
