@@ -19,65 +19,51 @@ const googleSecret = process.env.AUTH_GOOGLE_SECRET
 
 const isAuthConfigured = Boolean(authSecret && googleId && googleSecret)
 
+type Handler = (...args: any[]) => any
+type Handlers = { GET: Handler; POST: Handler }
+
 // NOTE:
 // Next.js build（Collecting page data）中に route modules が評価されるため、
 // env未設定だとビルド自体が落ちるのを防ぐ。未設定時は /api/auth を 500 にする。
-type Handler = (req: Request) => Response | Promise<Response>
-type Handlers = { GET: Handler; POST: Handler }
-
-let handlers: Handlers
-let auth: (handler: (req: any) => any) => any
-let signIn: (...args: any[]) => any
-let signOut: (...args: any[]) => any
-
-if (!isAuthConfigured) {
-  const notConfigured = () =>
-    new Response("Auth is not configured. Set AUTH_SECRET/AUTH_GOOGLE_ID/AUTH_GOOGLE_SECRET.", { status: 500 })
-
-  handlers = {
-    GET: async () => notConfigured(),
-    POST: async () => notConfigured(),
-  }
-
-  auth = (handler) => {
-    return (req: unknown) => handler(req as any)
-  }
-
-  signIn = async () => {
-    throw new Error("Auth is not configured")
-  }
-  signOut = async () => {
-    throw new Error("Auth is not configured")
-  }
-} else {
-  const nextAuth = NextAuth({
-    secret: authSecret,
-    providers: [
-      Google({
-        clientId: googleId!,
-        clientSecret: googleSecret!,
-      }),
-    ],
-    pages: {
-      signIn: "/login",
-    },
-    callbacks: {
-      async signIn({ user, profile }) {
-        const email = (user.email ?? (profile as { email?: string } | null)?.email ?? "").toLowerCase()
-        if (!email) return false
-
-        // 許可リストが空の場合は「誰も通さない」= セキュア側に倒す
-        if (allowedEmails.size === 0) return false
-        return allowedEmails.has(email)
-      },
-    },
-  })
-  handlers = nextAuth.handlers as unknown as Handlers
-  auth = nextAuth.auth as unknown as (handler: (req: any) => any) => any
-  signIn = nextAuth.signIn
-  signOut = nextAuth.signOut
+const notConfiguredHandlers: Handlers = {
+  GET: async () =>
+    new Response("Auth is not configured. Set AUTH_SECRET/AUTH_GOOGLE_ID/AUTH_GOOGLE_SECRET.", { status: 500 }),
+  POST: async () =>
+    new Response("Auth is not configured. Set AUTH_SECRET/AUTH_GOOGLE_ID/AUTH_GOOGLE_SECRET.", { status: 500 }),
 }
 
-export { handlers, auth, signIn, signOut }
+const nextAuth = isAuthConfigured
+  ? NextAuth({
+      secret: authSecret,
+      providers: [
+        Google({
+          clientId: googleId!,
+          clientSecret: googleSecret!,
+        }),
+      ],
+      pages: {
+        signIn: "/login",
+      },
+      callbacks: {
+        async signIn({ user, profile }) {
+          const email = (user.email ?? (profile as { email?: string } | null)?.email ?? "").toLowerCase()
+          if (!email) return false
+
+          // 許可リストが空の場合は「誰も通さない」= セキュア側に倒す
+          if (allowedEmails.size === 0) return false
+          return allowedEmails.has(email)
+        },
+      },
+    })
+  : null
+
+export const handlers: Handlers = (nextAuth?.handlers as unknown as Handlers) ?? notConfiguredHandlers
+export const auth: any = nextAuth?.auth ?? ((handler: any) => handler)
+export const signIn: any = nextAuth?.signIn ?? (async () => {
+  throw new Error("Auth is not configured")
+})
+export const signOut: any = nextAuth?.signOut ?? (async () => {
+  throw new Error("Auth is not configured")
+})
 
 
