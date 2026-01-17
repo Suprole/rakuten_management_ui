@@ -32,6 +32,7 @@ interface FilterState {
 }
 
 export function ProductList({ products, onSelectProduct }: ProductListProps) {
+  const toPercent = (v: number) => (Math.abs(v) <= 1 ? v * 100 : v)
   const [search, setSearch] = useState("")
   const [showFilters, setShowFilters] = useState(false)
   const [sortField, setSortField] = useState<SortField | null>(null)
@@ -390,7 +391,7 @@ export function ProductList({ products, onSelectProduct }: ProductListProps) {
                     {product.sales_units_m.toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-sm text-right text-foreground">{product.access_m.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-sm text-right text-foreground">{product.cv_m.toFixed(2)}%</td>
+                  <td className="px-4 py-3 text-sm text-right text-foreground">{toPercent(product.cv_m).toFixed(1)}%</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       {product.badges.slice(0, 3).map((badge, idx) => (

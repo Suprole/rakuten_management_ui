@@ -294,8 +294,9 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
   const sales_units_lm = n("sales_units_lm")
   const access_m = n("access_m")
   const access_lm = n("access_lm")
-  const cv_m = n("cv_m")
-  const cv_lm = n("cv_lm")
+  const toPercent = (v: number) => (Math.abs(v) <= 1 ? v * 100 : v)
+  const cv_m = toPercent(n("cv_m"))
+  const cv_lm = toPercent(n("cv_lm"))
   const fav_add_m = n("fav_add_m")
   const fav_add_lm = n("fav_add_lm")
   const fav_total = n("fav_total")
@@ -304,9 +305,9 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
   const reviews_total = n("reviews_total")
   const stay_m = n("stay_m")
   const stay_lm = n("stay_lm")
-  // 離脱率は「0〜1の比率」で来る前提で%表示にする
-  const bounce_m = n("bounce_m") * 100
-  const bounce_lm = n("bounce_lm") * 100
+  // 離脱率は「0〜1の比率」で来る前提だが、念のため0〜100入力も許容して%表示にする
+  const bounce_m = toPercent(n("bounce_m"))
+  const bounce_lm = toPercent(n("bounce_lm"))
   const new_ratio_m = n("new_ratio_m")
   const rep_ratio_m = n("rep_ratio_m")
   const new_ratio_lm = n("orders_total_lm") > 0 ? (n("orders_new_lm") / n("orders_total_lm")) * 100 : 0
