@@ -82,7 +82,7 @@ function ComparisonCard({
 }
 
 export function ProductDetail({ product, onBack }: ProductDetailProps) {
-  const [productRating, setProductRating] = useState<NonNullable<ProductSummary["rating"]>>(product.rating || "C")
+  const [productRating, setProductRating] = useState<ProductSummary["rating"]>(product.rating ?? null)
   const [memo, setMemo] = useState("")
   const [noteUpdatedAt, setNoteUpdatedAt] = useState<string | null>(null)
   const [noteLoading, setNoteLoading] = useState(false)
@@ -98,6 +98,8 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
       sales_units_m: number
       setting_margin: number
       shipping_type: string
+      price_in_tax: number
+      cost_ex_tax: number
     }>
   >([])
 
@@ -108,11 +110,11 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
     shipping_costs_in_tax: Array<{ shipping_type: string; shipping_cost_in_tax: number }>
   } | null>(null)
 
-  const [simulatorPrice, setSimulatorPrice] = useState("2000")
+  const [simulatorPrice, setSimulatorPrice] = useState<string>("")
   const [simulatorShippingType, setSimulatorShippingType] = useState<string>("default")
-  const [simulatorCost, setSimulatorCost] = useState("1000")
-  const [simulatorPoint, setSimulatorPoint] = useState("1")
-  const [simulatorCoupon, setSimulatorCoupon] = useState("0")
+  const [simulatorCost, setSimulatorCost] = useState<string>("")
+  const [simulatorPoint, setSimulatorPoint] = useState<string>("")
+  const [simulatorCoupon, setSimulatorCoupon] = useState<string>("0")
 
   useEffect(() => {
     const run = async () => {
@@ -127,7 +129,7 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
           memo: string
           updated_at: string | null
         }
-        if (data.rating) setProductRating(data.rating)
+        setProductRating(data.rating ?? null)
         setMemo(data.memo ?? "")
         setNoteUpdatedAt(data.updated_at ?? null)
       } catch (e) {
@@ -161,6 +163,8 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
             sales_units_m: number
             setting_margin: number
             shipping_type: string
+            price_in_tax: number
+            cost_ex_tax: number
           }>
         }
         const setData = (await setRes.json()) as {
@@ -176,8 +180,19 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
         // 初期選択: SKUのshipping_typeがあればそれ、無ければdefault
         const st = (sData.skus?.find((x) => x.shipping_type)?.shipping_type ?? "default").toString()
         setSimulatorShippingType(st || "default")
-        // 初期ポイント: settingsのdefault
-        setSimulatorPoint(String(Math.round((setData.default_point_rate ?? 0.01) * 100)))
+
+        // 初期ポイント: settingsのdefault（%）
+        if (!simulatorPoint) {
+          setSimulatorPoint(String(((setData.default_point_rate ?? 0.01) * 100).toFixed(1)))
+        }
+
+        // シミュレーター初期値: 代表SKUの設定販売価格/仕入れ値（仕様書の入力項目に合わせる）
+        const rep = String((pData.product?.["representative_sku"] ?? "") as string)
+        const repSku = (sData.skus ?? []).find((x) => x.sku_code === rep) ?? (sData.skus ?? [])[0] ?? null
+        if (repSku) {
+          if (!simulatorPrice) setSimulatorPrice(String(Math.round(repSku.price_in_tax)))
+          if (!simulatorCost) setSimulatorCost(String(Math.round(repSku.cost_ex_tax)))
+        }
       } catch (e) {
         setDetailError(e instanceof Error ? e.message : "unknown error")
       } finally {
@@ -283,12 +298,15 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
   const cv_lm = n("cv_lm")
   const fav_add_m = n("fav_add_m")
   const fav_add_lm = n("fav_add_lm")
+  const fav_total = n("fav_total")
   const reviews_post_m = n("reviews_post_m")
   const reviews_post_lm = n("reviews_post_lm")
+  const reviews_total = n("reviews_total")
   const stay_m = n("stay_m")
   const stay_lm = n("stay_lm")
-  const bounce_m = n("bounce_m")
-  const bounce_lm = n("bounce_lm")
+  // 離脱率は「0〜1の比率」で来る前提で%表示にする
+  const bounce_m = n("bounce_m") * 100
+  const bounce_lm = n("bounce_lm") * 100
   const new_ratio_m = n("new_ratio_m")
   const rep_ratio_m = n("rep_ratio_m")
   const new_ratio_lm = n("orders_total_lm") > 0 ? (n("orders_new_lm") / n("orders_total_lm")) * 100 : 0
@@ -351,6 +369,9 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
                   代表SKU: <span className="font-mono text-foreground">{product.representative_sku}</span>
                 </span>
               </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                <div className="rounded border px-3 py-2">在庫: {n("stock_sum").toLocaleString()}</div>
+              </div>
             </div>
             <div className="flex flex-wrap gap-1">
               {product.badges.map((badge, idx) => (
@@ -370,14 +391,14 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
               currentValue={sales_amount_m}
               previousValue={sales_amount_lm}
               changePercent={sales_amount_lm > 0 ? Math.round(((sales_amount_m - sales_amount_lm) / sales_amount_lm) * 100) : 0}
-              formatValue={(val) => `¥${Number(val).toLocaleString()}`}
+              formatValue={(val) => `¥${Math.round(Number(val)).toLocaleString()}`}
             />
             <ComparisonCard
               title="利益"
               currentValue={profit_m}
               previousValue={profit_lm}
               changePercent={profit_lm > 0 ? Math.round(((profit_m - profit_lm) / profit_lm) * 100) : 0}
-              formatValue={(val) => `¥${Number(val).toLocaleString()}`}
+              formatValue={(val) => `¥${Math.round(Number(val)).toLocaleString()}`}
             />
             <ComparisonCard
               title="売上個数"
@@ -404,21 +425,21 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
               currentValue={cv_m}
               previousValue={cv_lm}
               changePercent={cv_lm > 0 ? Math.round(((cv_m - cv_lm) / cv_lm) * 100) : 0}
-              formatValue={(val) => `${Number(val).toFixed(2)}%`}
+              formatValue={(val) => `${Number(val).toFixed(1)}%`}
             />
             <ComparisonCard
               title="新規購入比率"
               currentValue={new_ratio_m}
               previousValue={new_ratio_lm}
               changePercent={new_ratio_lm > 0 ? Math.round(((new_ratio_m - new_ratio_lm) / new_ratio_lm) * 100) : 0}
-              formatValue={(val) => `${val}%`}
+              formatValue={(val) => `${Number(val).toFixed(1)}%`}
             />
             <ComparisonCard
               title="リピート購入比率"
               currentValue={rep_ratio_m}
               previousValue={rep_ratio_lm}
               changePercent={rep_ratio_lm > 0 ? Math.round(((rep_ratio_m - rep_ratio_lm) / rep_ratio_lm) * 100) : 0}
-              formatValue={(val) => `${val}%`}
+              formatValue={(val) => `${Number(val).toFixed(1)}%`}
             />
             <ComparisonCard
               title="お気に入り登録ユーザー数"
@@ -439,15 +460,28 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
               currentValue={stay_m}
               previousValue={stay_lm}
               changePercent={stay_lm > 0 ? Math.round(((stay_m - stay_lm) / stay_lm) * 100) : 0}
-              formatValue={(val) => `${Number(val).toFixed(1)}`}
+              formatValue={(val) => `${Number(val).toFixed(1)}秒`}
             />
             <ComparisonCard
               title="離脱率"
               currentValue={bounce_m}
               previousValue={bounce_lm}
               changePercent={bounce_lm > 0 ? Math.round(((bounce_m - bounce_lm) / bounce_lm) * 100) : 0}
-              formatValue={(val) => `${Number(val).toFixed(2)}%`}
+              formatValue={(val) => `${Number(val).toFixed(1)}%`}
             />
+          </div>
+
+          <div className="mt-4 grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Card className="p-4">
+              <h4 className="font-semibold text-foreground mb-1">お気に入り総ユーザー数</h4>
+              <div className="text-2xl font-bold text-foreground">{fav_total.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground">総数</div>
+            </Card>
+            <Card className="p-4">
+              <h4 className="font-semibold text-foreground mb-1">総レビュー数</h4>
+              <div className="text-2xl font-bold text-foreground">{reviews_total.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground">総数</div>
+            </Card>
           </div>
         </div>
 
@@ -485,13 +519,16 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
               <div>
                 <Label className="text-sm text-foreground mb-2 block">商品評価（S,A,B,C,D,E）</Label>
                 <Select
-                  value={productRating}
-                  onValueChange={(value) => setProductRating(value as NonNullable<ProductSummary["rating"]>)}
+                  value={(productRating ?? "__unset__") as string}
+                  onValueChange={(value) =>
+                    setProductRating(value === "__unset__" ? null : (value as NonNullable<ProductSummary["rating"]>))
+                  }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <SelectValue placeholder="未設定" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__unset__">未設定</SelectItem>
                     <SelectItem value="S">
                       <Badge className="bg-purple-500 text-white">S - 最優良</Badge>
                     </SelectItem>
@@ -513,7 +550,12 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
                   </SelectContent>
                 </Select>
                 <div className="mt-2 text-xs text-muted-foreground">
-                  現在の評価: <Badge className={cn("ml-1", getRatingColor(productRating))}>{productRating}</Badge>
+                  現在の評価:{" "}
+                  {productRating ? (
+                    <Badge className={cn("ml-1", getRatingColor(productRating))}>{productRating}</Badge>
+                  ) : (
+                    <span className="ml-1">未設定</span>
+                  )}
                 </div>
               </div>
               <div>
@@ -612,7 +654,7 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
               <div>
                 <div className="text-sm text-muted-foreground mb-2">予想利益（税抜）</div>
                 <div className={cn("text-4xl font-bold", profit > 0 ? "text-green-500" : "text-destructive")}>
-                  ¥{profit.toFixed(0)}
+                  ¥{Math.round(profit).toLocaleString()}
                 </div>
               </div>
               <div>
