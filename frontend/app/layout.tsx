@@ -13,11 +13,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const enableAnalytics = process.env.NEXT_PUBLIC_ENABLE_VERCEL_ANALYTICS === "1"
   return (
     <html lang="ja">
-      <body className="min-h-screen bg-white text-gray-900">
+      <body className="min-h-screen bg-background text-foreground">
         {children}
-        <Analytics />
+        {enableAnalytics ? <Analytics /> : null}
       </body>
     </html>
   )
