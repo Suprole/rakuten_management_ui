@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -113,7 +113,6 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
   const [simulatorCost, setSimulatorCost] = useState("1000")
   const [simulatorPoint, setSimulatorPoint] = useState("1")
   const [simulatorCoupon, setSimulatorCoupon] = useState("0")
-  const [simulatorError, setSimulatorError] = useState<string | null>(null)
 
   useEffect(() => {
     const run = async () => {
@@ -226,8 +225,7 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
     }
   }
 
-  const calculateProfit = () => {
-    setSimulatorError(null)
+  const profitResult = useMemo(() => {
     const priceInTax = Number.parseFloat(simulatorPrice)
     const shippingCostInTax =
       settings?.shipping_costs_in_tax.find((x) => x.shipping_type === simulatorShippingType)?.shipping_cost_in_tax ?? 0
@@ -247,8 +245,7 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
     if (Number.isFinite(pointPct) && (pointPct < 0 || pointPct > 100)) errs.push("ポイント倍率は0〜100%の範囲にしてください")
 
     if (errs.length > 0) {
-      setSimulatorError(errs[0])
-      return { profit: 0, margin: 0, netInTax: 0 }
+      return { profit: 0, margin: 0, netInTax: 0, error: errs[0] }
     }
 
     const pointRate = pointPct / 100
@@ -258,16 +255,19 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
     const netInTax = priceInTax * (1 - feeRate - pointRate) - couponInTax
     const netExTax = (netInTax - shippingCostInTax) / (1 + taxRate)
     const profitExTax = netExTax - costExTax
-    const margin = profitExTax / (priceInTax / (1 + taxRate))
+    const margin = priceInTax > 0 ? profitExTax / (priceInTax / (1 + taxRate)) : 0
 
     return {
       profit: profitExTax,
       margin: margin * 100,
       netInTax,
+      error: null as string | null,
     }
-  }
+  }, [simulatorPrice, simulatorShippingType, simulatorCost, simulatorPoint, simulatorCoupon, settings])
 
-  const { profit, margin } = calculateProfit()
+  const profit = profitResult.profit
+  const margin = profitResult.margin
+  const simulatorError = profitResult.error
 
   const d = detail
   const n = (k: string) => (typeof d?.[k] === "number" ? (d?.[k] as number) : Number(d?.[k] ?? 0))
