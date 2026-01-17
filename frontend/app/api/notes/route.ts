@@ -58,11 +58,14 @@ export async function POST(req: Request) {
     )
   }
 
-  const res = await fetch(NOTES_WEBAPP_URL, {
+  // Apps Script doPost(e) はリクエストヘッダを取得できないため、tokenはボディ/クエリで渡す
+  const url = new URL(NOTES_WEBAPP_URL)
+  url.searchParams.set("token", NOTES_WEBAPP_TOKEN)
+
+  const res = await fetch(url.toString(), {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-webapp-token": NOTES_WEBAPP_TOKEN,
     },
     body: JSON.stringify({
       action: "saveNote",
@@ -70,6 +73,7 @@ export async function POST(req: Request) {
       rating,
       memo,
       export_snapshot: true,
+      token: NOTES_WEBAPP_TOKEN,
     }),
   })
 
