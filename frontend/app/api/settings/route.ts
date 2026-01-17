@@ -1,4 +1,5 @@
 export const revalidate = 3600
+export const dynamic = "force-dynamic"
 
 export async function GET() {
   const { fetchSnapshot, settingsToMap, asNumber, asString } = await import("@/lib/snapshot")

@@ -1,28 +1,12 @@
-"use client"
-
-import { signIn } from "next-auth/react"
-import { useSearchParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Suspense } from "react"
+import LoginClient from "./login-client"
 
 export default function LoginPage() {
-  const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/"
-
+  // useSearchParams() は Suspense 配下が必須（CSR bailout 対応）
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <Card className="w-full max-w-md p-6 space-y-4">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">ログイン</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            指定されたメールアドレスのGoogleアカウントのみ閲覧できます。
-          </p>
-        </div>
-        <Button className="w-full" onClick={() => signIn("google", { callbackUrl })}>
-          Googleでログイン
-        </Button>
-      </Card>
-    </div>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">読み込み中...</div>}>
+      <LoginClient />
+    </Suspense>
   )
 }
 

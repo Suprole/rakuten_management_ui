@@ -9,10 +9,46 @@ export interface Snapshot {
 }
 
 const SNAPSHOT_URL = process.env.SNAPSHOT_URL
+const SNAPSHOT_GCS_BUCKET = process.env.SNAPSHOT_GCS_BUCKET
+const SNAPSHOT_GCS_OBJECT = process.env.SNAPSHOT_GCS_OBJECT ?? "snapshot.json"
+const GCP_SERVICE_ACCOUNT_KEY = process.env.GCP_SERVICE_ACCOUNT_KEY
+
+type ServiceAccountKey = {
+  project_id?: string
+  client_email?: string
+  private_key?: string
+}
+
+async function fetchSnapshotFromGcs(): Promise<Snapshot> {
+  if (!SNAPSHOT_GCS_BUCKET) throw new Error("Missing env var: SNAPSHOT_GCS_BUCKET")
+  if (!GCP_SERVICE_ACCOUNT_KEY) throw new Error("Missing env var: GCP_SERVICE_ACCOUNT_KEY")
+
+  let key: ServiceAccountKey
+  try {
+    key = JSON.parse(GCP_SERVICE_ACCOUNT_KEY) as ServiceAccountKey
+  } catch {
+    throw new Error("Invalid JSON in env var: GCP_SERVICE_ACCOUNT_KEY")
+  }
+
+  const { Storage } = await import("@google-cloud/storage")
+  const storage = new Storage({
+    projectId: key.project_id,
+    credentials: {
+      client_email: key.client_email,
+      private_key: key.private_key,
+    },
+  })
+
+  const [buf] = await storage.bucket(SNAPSHOT_GCS_BUCKET).file(SNAPSHOT_GCS_OBJECT).download()
+  return JSON.parse(buf.toString("utf-8")) as Snapshot
+}
 
 export async function fetchSnapshot(options?: { revalidate?: number; cache?: RequestCache }): Promise<Snapshot> {
+  // 優先順位:
+  // 1) SNAPSHOT_URL（公開/社内URLなどでHTTP取得）
+  // 2) 非公開GCS（サービスアカウントで取得）: SNAPSHOT_GCS_BUCKET + GCP_SERVICE_ACCOUNT_KEY
   if (!SNAPSHOT_URL) {
-    throw new Error("Missing env var: SNAPSHOT_URL")
+    return await fetchSnapshotFromGcs()
   }
 
   const revalidate = options?.revalidate ?? 3600
