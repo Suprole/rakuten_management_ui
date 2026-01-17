@@ -1,6 +1,6 @@
 var R=require("../../../chunks/[turbopack]_runtime.js")("server/app/api/skus/route.js")
-R.c("server/chunks/[root-of-the-server]__0b38c83a._.js")
-R.c("server/chunks/[root-of-the-server]__8f5ebbc3._.js")
-R.c("server/chunks/_next-internal_server_app_api_skus_route_actions_6264dfa6.js")
-R.m(76320)
-module.exports=R.m(76320).exports
+R.c("server/chunks/[root-of-the-server]__3eec19eb._.js")
+R.c("server/chunks/[root-of-the-server]__396ad7f2._.js")
+R.c("server/chunks/frontend__next-internal_server_app_api_skus_route_actions_a14f958e.js")
+R.m(97445)
+module.exports=R.m(97445).exports

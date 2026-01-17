@@ -99,7 +99,7 @@
         "transform": "lodash/{{member}}"
       }
     },
-    "outputFileTracingRoot": "/Users/hashimakousei/Desktop/suprole_sales/rakuten_management_ui/frontend",
+    "outputFileTracingRoot": "/Users/hashimakousei/Desktop/suprole_sales/rakuten_management_ui",
     "cacheComponents": false,
     "cacheLife": {
       "default": {
@@ -289,12 +289,12 @@
     "bundlePagesRouterDependencies": false,
     "configFileName": "next.config.ts",
     "turbopack": {
-      "root": "/Users/hashimakousei/Desktop/suprole_sales/rakuten_management_ui/frontend"
+      "root": "/Users/hashimakousei/Desktop/suprole_sales/rakuten_management_ui"
     },
     "distDirRoot": ".next"
   },
   "appDir": "/Users/hashimakousei/Desktop/suprole_sales/rakuten_management_ui/frontend",
-  "relativeAppDir": "",
+  "relativeAppDir": "frontend",
   "files": [
     ".next/routes-manifest.json",
     ".next/server/pages-manifest.json",
