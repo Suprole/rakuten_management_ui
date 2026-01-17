@@ -2,25 +2,36 @@ export const revalidate = 0
 export const dynamic = "force-dynamic"
 
 export async function GET(req: Request) {
-  const url = new URL(req.url)
-  const productCode = url.searchParams.get("product_code")
+  try {
+    const url = new URL(req.url)
+    const productCode = url.searchParams.get("product_code")
 
-  if (!productCode) {
-    return Response.json({ error: "product_code is required" }, { status: 400 })
+    if (!productCode) {
+      return Response.json({ error: "product_code is required" }, { status: 400 })
+    }
+
+    const { fetchSnapshot, asString } = await import("@/lib/snapshot")
+    // notesは保存直後の反映を優先するため no-store で読む（一覧等は通常revalidate）
+    const snapshot = await fetchSnapshot({ cache: "no-store" })
+
+    const note = snapshot.notes.find((n) => asString(n["product_code"]) === productCode) ?? null
+    return Response.json({
+      product_code: productCode,
+      rating: note ? ((asString(note["rating"]) || null) as "S" | "A" | "B" | "C" | "D" | "E" | null) : null,
+      memo: note ? asString(note["memo"]) : "",
+      updated_at: note ? (asString(note["updated_at"]) || null) : null,
+      generated_at: snapshot.generated_at,
+    })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "unknown error"
+    return Response.json(
+      {
+        error: "failed_to_load_snapshot",
+        message,
+      },
+      { status: 500 },
+    )
   }
-
-  const { fetchSnapshot, asString } = await import("@/lib/snapshot")
-  // notesは保存直後の反映を優先するため no-store で読む（一覧等は通常revalidate）
-  const snapshot = await fetchSnapshot({ cache: "no-store" })
-
-  const note = snapshot.notes.find((n) => asString(n["product_code"]) === productCode) ?? null
-  return Response.json({
-    product_code: productCode,
-    rating: note ? ((asString(note["rating"]) || null) as "S" | "A" | "B" | "C" | "D" | "E" | null) : null,
-    memo: note ? asString(note["memo"]) : "",
-    updated_at: note ? (asString(note["updated_at"]) || null) : null,
-    generated_at: snapshot.generated_at,
-  })
 }
 
 export async function POST(req: Request) {
