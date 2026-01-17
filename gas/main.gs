@@ -3,7 +3,9 @@ function initSheets() {
   ensureSheet_(ss, getConfig_().sheets.productsCache, productsCacheHeaders_())
   ensureSheet_(ss, getConfig_().sheets.skusCache, skusCacheHeaders_())
   ensureSheet_(ss, getConfig_().sheets.productNotes, ["product_code", "rating", "memo", "updated_at"])
-  ensureSheet_(ss, getConfig_().sheets.settings, ["key", "value"])
+  // settingsは「送料テーブル（shipping_type/shipping_cost_in_tax）」+「key/value」を同一シートで扱う（仕様書 §6.5）
+  // 互換性: 既存の ["key","value"] シートでも loadSettings_ 側で読めるようにしている
+  ensureSheet_(ss, getConfig_().sheets.settings, ["shipping_type", "shipping_cost_in_tax", "key", "value"])
 }
 
 function regenerateCaches() {

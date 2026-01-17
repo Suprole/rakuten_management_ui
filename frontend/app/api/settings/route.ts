@@ -12,8 +12,14 @@ export async function GET() {
     const fee_rate = m["fee_rate"] !== undefined ? asNumber(m["fee_rate"]) : 0.07
     const default_point_rate = m["default_point_rate"] !== undefined ? asNumber(m["default_point_rate"]) : 0.01
 
-    // 送料テーブルは将来拡張（現段階はダミー維持）
-    const shipping_costs_in_tax = [{ shipping_type: "default", shipping_cost_in_tax: 800 }]
+    // 送料テーブル（仕様書 §6.5）
+    // - 互換: settingsが旧key/valueのみの場合はダミーを返す
+    const shipping_costs_in_tax = snapshot.settings
+      .map((row) => ({
+        shipping_type: asString((row as Record<string, unknown>)["shipping_type"]).trim(),
+        shipping_cost_in_tax: asNumber((row as Record<string, unknown>)["shipping_cost_in_tax"]),
+      }))
+      .filter((x) => x.shipping_type)
 
     // 閾値JSON（あれば）
     let badge_thresholds: Record<string, unknown> = {}
@@ -25,11 +31,13 @@ export async function GET() {
       }
     }
 
+    const shippingTable = shipping_costs_in_tax.length > 0 ? shipping_costs_in_tax : [{ shipping_type: "default", shipping_cost_in_tax: 800 }]
+
     return Response.json({
       tax_rate,
       fee_rate,
       default_point_rate,
-      shipping_costs_in_tax,
+      shipping_costs_in_tax: shippingTable,
       badge_thresholds,
       generated_at: snapshot.generated_at,
     })

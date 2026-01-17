@@ -88,8 +88,28 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
   const [noteLoading, setNoteLoading] = useState(false)
   const [noteSaving, setNoteSaving] = useState(false)
   const [noteError, setNoteError] = useState<string | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
+  const [detail, setDetail] = useState<Record<string, unknown> | null>(null)
+  const [skus, setSkus] = useState<
+    Array<{
+      sku_code: string
+      stock: number
+      sales_units_m: number
+      setting_margin: number
+      shipping_type: string
+    }>
+  >([])
+
+  const [settings, setSettings] = useState<{
+    tax_rate: number
+    fee_rate: number
+    default_point_rate: number
+    shipping_costs_in_tax: Array<{ shipping_type: string; shipping_cost_in_tax: number }>
+  } | null>(null)
+
   const [simulatorPrice, setSimulatorPrice] = useState("2000")
-  const [simulatorShipping, setSimulatorShipping] = useState("800")
+  const [simulatorShippingType, setSimulatorShippingType] = useState<string>("default")
   const [simulatorCost, setSimulatorCost] = useState("1000")
   const [simulatorPoint, setSimulatorPoint] = useState("1")
   const [simulatorCoupon, setSimulatorCoupon] = useState("0")
@@ -114,6 +134,54 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
         setNoteError(e instanceof Error ? e.message : "unknown error")
       } finally {
         setNoteLoading(false)
+      }
+    }
+    run()
+  }, [product.product_code])
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        setDetailLoading(true)
+        setDetailError(null)
+        const [pRes, sRes, setRes] = await Promise.all([
+          fetch(`/api/products?product_code=${encodeURIComponent(product.product_code)}`, { cache: "no-store" }),
+          fetch(`/api/skus?product_code=${encodeURIComponent(product.product_code)}`, { cache: "no-store" }),
+          fetch(`/api/settings`, { cache: "no-store" }),
+        ])
+        if (!pRes.ok) throw new Error(`products: ${pRes.status} ${pRes.statusText}`)
+        if (!sRes.ok) throw new Error(`skus: ${sRes.status} ${sRes.statusText}`)
+        if (!setRes.ok) throw new Error(`settings: ${setRes.status} ${setRes.statusText}`)
+
+        const pData = (await pRes.json()) as { product: Record<string, unknown> }
+        const sData = (await sRes.json()) as {
+          skus: Array<{
+            sku_code: string
+            stock: number
+            sales_units_m: number
+            setting_margin: number
+            shipping_type: string
+          }>
+        }
+        const setData = (await setRes.json()) as {
+          tax_rate: number
+          fee_rate: number
+          default_point_rate: number
+          shipping_costs_in_tax: Array<{ shipping_type: string; shipping_cost_in_tax: number }>
+        }
+        setDetail(pData.product ?? null)
+        setSkus(sData.skus ?? [])
+        setSettings(setData)
+
+        // 初期選択: SKUのshipping_typeがあればそれ、無ければdefault
+        const st = (sData.skus?.find((x) => x.shipping_type)?.shipping_type ?? "default").toString()
+        setSimulatorShippingType(st || "default")
+        // 初期ポイント: settingsのdefault
+        setSimulatorPoint(String(Math.round((setData.default_point_rate ?? 0.01) * 100)))
+      } catch (e) {
+        setDetailError(e instanceof Error ? e.message : "unknown error")
+      } finally {
+        setDetailLoading(false)
       }
     }
     run()
@@ -150,12 +218,13 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
 
   const calculateProfit = () => {
     const priceInTax = Number.parseFloat(simulatorPrice) || 0
-    const shippingCostInTax = Number.parseFloat(simulatorShipping) || 0
+    const shippingCostInTax =
+      settings?.shipping_costs_in_tax.find((x) => x.shipping_type === simulatorShippingType)?.shipping_cost_in_tax ?? 0
     const costExTax = Number.parseFloat(simulatorCost) || 0
     const pointRate = (Number.parseFloat(simulatorPoint) || 0) / 100
     const couponInTax = Number.parseFloat(simulatorCoupon) || 0
-    const feeRate = 0.07
-    const taxRate = 0.1
+    const feeRate = settings?.fee_rate ?? 0.07
+    const taxRate = settings?.tax_rate ?? 0.1
 
     const netInTax = priceInTax * (1 - feeRate - pointRate) - couponInTax
     const netExTax = (netInTax - shippingCostInTax) / (1 + taxRate)
@@ -171,26 +240,25 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
 
   const { profit, margin } = calculateProfit()
 
-  const mockComparison = {
-    sales_amount_m: product.sales_units_m * 2000,
-    sales_amount_lm: product.sales_units_m * 1.15 * 2000,
-    profit_m: product.sales_units_m * 600,
-    profit_lm: product.sales_units_m * 1.08 * 600,
-    sales_units_lm: Math.round(product.sales_units_m * 1.1),
-    margin_m: 28.5,
-    margin_lm: 30.0,
-    access_lm: Math.round(product.access_m * 1.12),
-    cv_lm: product.cv_m * 1.05,
-    new_ratio_m: 85,
-    new_ratio_lm: 82,
-    repeat_ratio_m: 15,
-    repeat_ratio_lm: 18,
-  }
+  const d = detail
+  const n = (k: string) => (typeof d?.[k] === "number" ? (d?.[k] as number) : Number(d?.[k] ?? 0))
+  const sales_amount_m = n("sales_amount_m")
+  const sales_amount_lm = n("sales_amount_lm")
+  const profit_m = n("profit_m")
+  const profit_lm = n("profit_lm")
+  const sales_units_m = n("sales_units_m")
+  const sales_units_lm = n("sales_units_lm")
+  const access_m = n("access_m")
+  const access_lm = n("access_lm")
+  const cv_m = n("cv_m")
+  const cv_lm = n("cv_lm")
+  const new_ratio_m = n("new_ratio_m")
+  const rep_ratio_m = n("rep_ratio_m")
+  const new_ratio_lm = n("orders_total_lm") > 0 ? (n("orders_new_lm") / n("orders_total_lm")) * 100 : 0
+  const rep_ratio_lm = n("orders_total_lm") > 0 ? (n("orders_rep_lm") / n("orders_total_lm")) * 100 : 0
 
-  const mockSkus = [
-    { sku: product.representative_sku, stock: product.stock_sum, sales: product.sales_units_m, margin: 25.5 },
-    { sku: `${product.representative_sku}-V2`, stock: 15, sales: 8, margin: 28.2 },
-  ]
+  const margin_m = sales_amount_m > 0 ? (profit_m / sales_amount_m) * 100 : 0
+  const margin_lm = sales_amount_lm > 0 ? (profit_lm / sales_amount_lm) * 100 : 0
 
   const getBadgeVariant = (badge: string) => {
     const goodBadges = ["高転換率", "超高転換率", "人気商品", "優良商品", "高評価", "在庫豊富"]
@@ -229,6 +297,9 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
         </Button>
       </div>
 
+      {detailLoading && <div className="text-sm text-muted-foreground">詳細を読み込み中...</div>}
+      {detailError && <div className="text-sm text-destructive">エラー: {detailError}</div>}
+
       <div className="grid gap-6">
         {/* Header Card */}
         <Card className="p-6">
@@ -259,57 +330,57 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             <ComparisonCard
               title="売上金額"
-              currentValue={mockComparison.sales_amount_m}
-              previousValue={mockComparison.sales_amount_lm}
-              changePercent={-13}
+              currentValue={sales_amount_m}
+              previousValue={sales_amount_lm}
+              changePercent={sales_amount_lm > 0 ? Math.round(((sales_amount_m - sales_amount_lm) / sales_amount_lm) * 100) : 0}
               formatValue={(val) => `¥${Number(val).toLocaleString()}`}
             />
             <ComparisonCard
               title="利益"
-              currentValue={mockComparison.profit_m}
-              previousValue={mockComparison.profit_lm}
-              changePercent={-7}
+              currentValue={profit_m}
+              previousValue={profit_lm}
+              changePercent={profit_lm > 0 ? Math.round(((profit_m - profit_lm) / profit_lm) * 100) : 0}
               formatValue={(val) => `¥${Number(val).toLocaleString()}`}
             />
             <ComparisonCard
               title="売上個数"
-              currentValue={product.sales_units_m}
-              previousValue={mockComparison.sales_units_lm}
-              changePercent={-9}
+              currentValue={sales_units_m}
+              previousValue={sales_units_lm}
+              changePercent={sales_units_lm > 0 ? Math.round(((sales_units_m - sales_units_lm) / sales_units_lm) * 100) : 0}
             />
             <ComparisonCard
               title="利益率"
-              currentValue={mockComparison.margin_m}
-              previousValue={mockComparison.margin_lm}
-              changePercent={-5}
+              currentValue={margin_m}
+              previousValue={margin_lm}
+              changePercent={margin_lm > 0 ? Math.round(((margin_m - margin_lm) / margin_lm) * 100) : 0}
               formatValue={(val) => `${Number(val).toFixed(1)}%`}
             />
             <ComparisonCard
               title="アクセス人数"
-              currentValue={product.access_m}
-              previousValue={mockComparison.access_lm}
-              changePercent={-11}
+              currentValue={access_m}
+              previousValue={access_lm}
+              changePercent={access_lm > 0 ? Math.round(((access_m - access_lm) / access_lm) * 100) : 0}
               formatValue={(val) => Number(val).toLocaleString()}
             />
             <ComparisonCard
               title="転換率"
-              currentValue={product.cv_m}
-              previousValue={mockComparison.cv_lm}
-              changePercent={3}
+              currentValue={cv_m}
+              previousValue={cv_lm}
+              changePercent={cv_lm > 0 ? Math.round(((cv_m - cv_lm) / cv_lm) * 100) : 0}
               formatValue={(val) => `${Number(val).toFixed(2)}%`}
             />
             <ComparisonCard
               title="新規購入比率"
-              currentValue={mockComparison.new_ratio_m}
-              previousValue={mockComparison.new_ratio_lm}
-              changePercent={4}
+              currentValue={new_ratio_m}
+              previousValue={new_ratio_lm}
+              changePercent={new_ratio_lm > 0 ? Math.round(((new_ratio_m - new_ratio_lm) / new_ratio_lm) * 100) : 0}
               formatValue={(val) => `${val}%`}
             />
             <ComparisonCard
               title="リピート購入比率"
-              currentValue={mockComparison.repeat_ratio_m}
-              previousValue={mockComparison.repeat_ratio_lm}
-              changePercent={-17}
+              currentValue={rep_ratio_m}
+              previousValue={rep_ratio_lm}
+              changePercent={rep_ratio_lm > 0 ? Math.round(((rep_ratio_m - rep_ratio_lm) / rep_ratio_lm) * 100) : 0}
               formatValue={(val) => `${val}%`}
             />
           </div>
@@ -320,20 +391,23 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4">SKU内訳</h3>
             <div className="space-y-3">
-              {mockSkus.map((sku, idx) => (
+              {skus.map((sku, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-accent">
                   <div>
-                    <div className="font-mono text-sm text-foreground">{sku.sku}</div>
+                    <div className="font-mono text-sm text-foreground">{sku.sku_code}</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      在庫: {sku.stock} / 今月売上: {sku.sales}個
+                      在庫: {sku.stock} / 今月売上: {sku.sales_units_m}個
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-medium text-foreground">{sku.margin}%</div>
+                    <div className="text-sm font-medium text-foreground">
+                      {sku.setting_margin <= 1 ? (sku.setting_margin * 100).toFixed(1) : sku.setting_margin.toFixed(1)}%
+                    </div>
                     <div className="text-xs text-muted-foreground">利益率</div>
                   </div>
                 </div>
               ))}
+              {skus.length === 0 && <div className="text-sm text-muted-foreground">SKUがありません</div>}
             </div>
           </Card>
 
@@ -417,16 +491,19 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
                 />
               </div>
               <div>
-                <Label htmlFor="shipping" className="text-sm text-foreground mb-2 block">
-                  送料（税込）
-                </Label>
-                <Input
-                  id="shipping"
-                  type="number"
-                  value={simulatorShipping}
-                  onChange={(e) => setSimulatorShipping(e.target.value)}
-                  placeholder="800"
-                />
+                <Label className="text-sm text-foreground mb-2 block">配送種別</Label>
+                <Select value={simulatorShippingType} onValueChange={setSimulatorShippingType}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="配送種別を選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(settings?.shipping_costs_in_tax ?? [{ shipping_type: "default", shipping_cost_in_tax: 800 }]).map((s) => (
+                      <SelectItem key={s.shipping_type} value={s.shipping_type}>
+                        {s.shipping_type}（¥{s.shipping_cost_in_tax}）
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="cost" className="text-sm text-foreground mb-2 block">
@@ -479,7 +556,7 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
                 </div>
               </div>
               <div className="text-xs text-muted-foreground pt-4 border-t border-border">
-                ※ 手数料率7%、消費税10%で計算
+                ※ 手数料率{((settings?.fee_rate ?? 0.07) * 100).toFixed(1)}%、消費税{((settings?.tax_rate ?? 0.1) * 100).toFixed(1)}%で計算
               </div>
             </div>
           </div>

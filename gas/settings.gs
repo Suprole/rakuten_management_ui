@@ -13,19 +13,41 @@ function loadSettings_(ss) {
     access_top_percent: 10,
     low_margin_threshold: 0.05,
   }
+  var shippingCosts = [] // [{ shipping_type, shipping_cost_in_tax }]
 
   try {
     var sh = getSheetByName_(ss, cfg.sheets.settings)
     var v = sh.getDataRange().getValues()
-    if (v.length < 2) return { taxRate: taxRate, feeRate: feeRate, defaultPointRate: defaultPointRate, thresholds: thresholds }
+    if (v.length < 2) {
+      return {
+        taxRate: taxRate,
+        feeRate: feeRate,
+        defaultPointRate: defaultPointRate,
+        thresholds: thresholds,
+        shippingCosts: shippingCosts,
+      }
+    }
     var hm = rawHeaderMap_(v[0])
+    // 互換: old settings header ["key","value"] も、new header ["shipping_type","shipping_cost_in_tax","key","value"] も読む
     var kIdx = hm["key"] !== undefined ? hm["key"] : 0
     var valIdx = hm["value"] !== undefined ? hm["value"] : 1
+    var shipTypeIdx = hm["shipping_type"] !== undefined ? hm["shipping_type"] : null
+    var shipCostIdx = hm["shipping_cost_in_tax"] !== undefined ? hm["shipping_cost_in_tax"] : null
     var kv = {}
     for (var r = 1; r < v.length; r++) {
+      // 送料テーブル（行単位）
+      if (shipTypeIdx !== null && shipCostIdx !== null) {
+        var st = String(v[r][shipTypeIdx] || "").trim()
+        if (st) {
+          shippingCosts.push({ shipping_type: st, shipping_cost_in_tax: normalizeNumber_(v[r][shipCostIdx]) })
+        }
+      }
+
+      // key/value（行単位）
       var key = String(v[r][kIdx] || "").trim()
-      if (!key) continue
-      kv[key] = v[r][valIdx]
+      if (key) {
+        kv[key] = v[r][valIdx]
+      }
     }
 
     if (kv["tax_rate"] !== undefined) taxRate = normalizeNumber_(kv["tax_rate"])
@@ -49,6 +71,6 @@ function loadSettings_(ss) {
     // settings未作成でも進める（defaultsで動く）
   }
 
-  return { taxRate: taxRate, feeRate: feeRate, defaultPointRate: defaultPointRate, thresholds: thresholds }
+  return { taxRate: taxRate, feeRate: feeRate, defaultPointRate: defaultPointRate, thresholds: thresholds, shippingCosts: shippingCosts }
 }
 
