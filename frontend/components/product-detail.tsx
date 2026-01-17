@@ -113,6 +113,7 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
   const [simulatorCost, setSimulatorCost] = useState("1000")
   const [simulatorPoint, setSimulatorPoint] = useState("1")
   const [simulatorCoupon, setSimulatorCoupon] = useState("0")
+  const [simulatorError, setSimulatorError] = useState<string | null>(null)
 
   useEffect(() => {
     const run = async () => {
@@ -189,8 +190,13 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
 
   const saveNote = async () => {
     try {
+      // 楽観更新: 先にUIへ反映（失敗したら復旧）
+      const prev = { rating: productRating, memo, updated_at: noteUpdatedAt }
+      const optimisticUpdatedAt = new Date().toISOString()
       setNoteSaving(true)
       setNoteError(null)
+      setNoteUpdatedAt(optimisticUpdatedAt)
+
       const res = await fetch("/api/notes", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -206,6 +212,10 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
         | null
       if (!res.ok) {
         const msg = data && "error" in data ? data.error : `${res.status} ${res.statusText}`
+        // 復旧
+        setProductRating(prev.rating)
+        setMemo(prev.memo)
+        setNoteUpdatedAt(prev.updated_at)
         throw new Error(msg)
       }
       if (data && "updated_at" in data) setNoteUpdatedAt(data.updated_at)
@@ -217,12 +227,31 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
   }
 
   const calculateProfit = () => {
-    const priceInTax = Number.parseFloat(simulatorPrice) || 0
+    setSimulatorError(null)
+    const priceInTax = Number.parseFloat(simulatorPrice)
     const shippingCostInTax =
       settings?.shipping_costs_in_tax.find((x) => x.shipping_type === simulatorShippingType)?.shipping_cost_in_tax ?? 0
-    const costExTax = Number.parseFloat(simulatorCost) || 0
-    const pointRate = (Number.parseFloat(simulatorPoint) || 0) / 100
-    const couponInTax = Number.parseFloat(simulatorCoupon) || 0
+    const costExTax = Number.parseFloat(simulatorCost)
+    const pointPct = Number.parseFloat(simulatorPoint)
+    const couponInTax = Number.parseFloat(simulatorCoupon)
+
+    const errs: string[] = []
+    if (!Number.isFinite(priceInTax)) errs.push("販売価格が未入力/不正です")
+    if (!Number.isFinite(costExTax)) errs.push("仕入れ値が未入力/不正です")
+    if (!Number.isFinite(pointPct)) errs.push("ポイント倍率が未入力/不正です")
+    if (!Number.isFinite(couponInTax)) errs.push("クーポンが未入力/不正です")
+
+    if (Number.isFinite(priceInTax) && priceInTax < 0) errs.push("販売価格は0以上にしてください")
+    if (Number.isFinite(costExTax) && costExTax < 0) errs.push("仕入れ値は0以上にしてください")
+    if (Number.isFinite(couponInTax) && couponInTax < 0) errs.push("クーポンは0以上にしてください")
+    if (Number.isFinite(pointPct) && (pointPct < 0 || pointPct > 100)) errs.push("ポイント倍率は0〜100%の範囲にしてください")
+
+    if (errs.length > 0) {
+      setSimulatorError(errs[0])
+      return { profit: 0, margin: 0, netInTax: 0 }
+    }
+
+    const pointRate = pointPct / 100
     const feeRate = settings?.fee_rate ?? 0.07
     const taxRate = settings?.tax_rate ?? 0.1
 
@@ -252,6 +281,14 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
   const access_lm = n("access_lm")
   const cv_m = n("cv_m")
   const cv_lm = n("cv_lm")
+  const fav_add_m = n("fav_add_m")
+  const fav_add_lm = n("fav_add_lm")
+  const reviews_post_m = n("reviews_post_m")
+  const reviews_post_lm = n("reviews_post_lm")
+  const stay_m = n("stay_m")
+  const stay_lm = n("stay_lm")
+  const bounce_m = n("bounce_m")
+  const bounce_lm = n("bounce_lm")
   const new_ratio_m = n("new_ratio_m")
   const rep_ratio_m = n("rep_ratio_m")
   const new_ratio_lm = n("orders_total_lm") > 0 ? (n("orders_new_lm") / n("orders_total_lm")) * 100 : 0
@@ -382,6 +419,34 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
               previousValue={rep_ratio_lm}
               changePercent={rep_ratio_lm > 0 ? Math.round(((rep_ratio_m - rep_ratio_lm) / rep_ratio_lm) * 100) : 0}
               formatValue={(val) => `${val}%`}
+            />
+            <ComparisonCard
+              title="お気に入り登録ユーザー数"
+              currentValue={fav_add_m}
+              previousValue={fav_add_lm}
+              changePercent={fav_add_lm > 0 ? Math.round(((fav_add_m - fav_add_lm) / fav_add_lm) * 100) : 0}
+              formatValue={(val) => Number(val).toLocaleString()}
+            />
+            <ComparisonCard
+              title="レビュー投稿数"
+              currentValue={reviews_post_m}
+              previousValue={reviews_post_lm}
+              changePercent={reviews_post_lm > 0 ? Math.round(((reviews_post_m - reviews_post_lm) / reviews_post_lm) * 100) : 0}
+              formatValue={(val) => Number(val).toLocaleString()}
+            />
+            <ComparisonCard
+              title="平均滞在時間"
+              currentValue={stay_m}
+              previousValue={stay_lm}
+              changePercent={stay_lm > 0 ? Math.round(((stay_m - stay_lm) / stay_lm) * 100) : 0}
+              formatValue={(val) => `${Number(val).toFixed(1)}`}
+            />
+            <ComparisonCard
+              title="離脱率"
+              currentValue={bounce_m}
+              previousValue={bounce_lm}
+              changePercent={bounce_lm > 0 ? Math.round(((bounce_m - bounce_lm) / bounce_lm) * 100) : 0}
+              formatValue={(val) => `${Number(val).toFixed(2)}%`}
             />
           </div>
         </div>
@@ -543,6 +608,7 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
               </div>
             </div>
             <div className="flex flex-col justify-center space-y-6 p-6 bg-accent rounded-lg">
+              {simulatorError && <div className="text-sm text-destructive">入力エラー: {simulatorError}</div>}
               <div>
                 <div className="text-sm text-muted-foreground mb-2">予想利益（税抜）</div>
                 <div className={cn("text-4xl font-bold", profit > 0 ? "text-green-500" : "text-destructive")}>
