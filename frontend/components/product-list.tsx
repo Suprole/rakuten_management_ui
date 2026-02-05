@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useMemo } from "react"
+import type { Dispatch, SetStateAction } from "react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,12 +14,22 @@ import { cn } from "@/lib/utils"
 interface ProductListProps {
   products: ProductSummary[]
   onSelectProduct: (product: ProductSummary) => void
+  search: string
+  setSearch: Dispatch<SetStateAction<string>>
+  showFilters: boolean
+  setShowFilters: Dispatch<SetStateAction<boolean>>
+  sortField: SortField | null
+  setSortField: Dispatch<SetStateAction<SortField | null>>
+  sortDirection: SortDirection
+  setSortDirection: Dispatch<SetStateAction<SortDirection>>
+  filters: FilterState
+  setFilters: Dispatch<SetStateAction<FilterState>>
 }
 
-type SortField = "stock_sum" | "sales_units_m" | "access_m" | "cv_m"
-type SortDirection = "asc" | "desc"
+export type SortField = "stock_sum" | "sales_units_m" | "access_m" | "cv_m"
+export type SortDirection = "asc" | "desc"
 
-interface FilterState {
+export interface FilterState {
   badges: string[]
   productRatings: string[]
   stockMin: string
@@ -31,25 +42,21 @@ interface FilterState {
   cvMax: string
 }
 
-export function ProductList({ products, onSelectProduct }: ProductListProps) {
+export function ProductList({
+  products,
+  onSelectProduct,
+  search,
+  setSearch,
+  showFilters,
+  setShowFilters,
+  sortField,
+  setSortField,
+  sortDirection,
+  setSortDirection,
+  filters,
+  setFilters,
+}: ProductListProps) {
   const toPercent = (v: number) => (Math.abs(v) <= 1 ? v * 100 : v)
-  const [search, setSearch] = useState("")
-  const [showFilters, setShowFilters] = useState(false)
-  const [sortField, setSortField] = useState<SortField | null>(null)
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
-
-  const [filters, setFilters] = useState<FilterState>({
-    badges: [],
-    productRatings: [],
-    stockMin: "",
-    stockMax: "",
-    salesMin: "",
-    salesMax: "",
-    accessMin: "",
-    accessMax: "",
-    cvMin: "",
-    cvMax: "",
-  })
 
   const allBadges = useMemo(() => {
     const badgeSet = new Set<string>()
