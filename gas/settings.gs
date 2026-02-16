@@ -12,6 +12,11 @@ function loadSettings_(ss) {
     cv_very_high: 10,
     access_top_percent: 10,
     low_margin_threshold: 0.05,
+    // 新規: 先月(確定月) vs 今月(月途中)の比較を「日割り」で評価する
+    // - access_per_day_change_pct: 1日あたりアクセスの増減率(%)
+    // - cv_change_pp: CVの増減(パーセントポイント) ※cv_m/cv_lmが%表現(例: 5)の前提
+    access_per_day_change_pct: 10,
+    cv_change_pp: 0.5,
   }
   var shippingCosts = [] // [{ shipping_type, shipping_cost_in_tax }]
 
@@ -59,6 +64,8 @@ function loadSettings_(ss) {
     if (kv["cv_very_high"] !== undefined) thresholds.cv_very_high = normalizeNumber_(kv["cv_very_high"])
     if (kv["access_top_percent"] !== undefined) thresholds.access_top_percent = normalizeNumber_(kv["access_top_percent"])
     if (kv["low_margin_threshold"] !== undefined) thresholds.low_margin_threshold = normalizeNumber_(kv["low_margin_threshold"])
+    if (kv["access_per_day_change_pct"] !== undefined) thresholds.access_per_day_change_pct = normalizeNumber_(kv["access_per_day_change_pct"])
+    if (kv["cv_change_pp"] !== undefined) thresholds.cv_change_pp = normalizeNumber_(kv["cv_change_pp"])
 
     if (kv["badge_thresholds_json"] !== undefined) {
       var raw = String(kv["badge_thresholds_json"] || "").trim()

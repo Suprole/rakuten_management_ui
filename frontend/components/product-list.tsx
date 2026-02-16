@@ -144,8 +144,8 @@ export function ProductList({
   }, [products, search, filters, sortField, sortDirection])
 
   const getBadgeVariant = (badge: string) => {
-    const goodBadges = ["高転換率", "超高転換率", "人気商品", "優良商品", "高評価", "在庫豊富"]
-    const badBadges = ["欠品", "赤字", "売上0", "CV低下", "要改善", "要注意", "低在庫"]
+    const goodBadges = ["高転換率", "超高転換率", "人気商品", "アクセス↑", "CV↑", "優良商品", "高評価", "在庫豊富"]
+    const badBadges = ["欠品", "赤字", "売上0", "アクセス↓", "CV↓", "要改善", "要注意", "低在庫"]
 
     if (badBadges.some((b) => badge.includes(b))) return "destructive"
     if (goodBadges.some((b) => badge.includes(b))) return "default"

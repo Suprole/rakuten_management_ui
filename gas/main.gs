@@ -239,6 +239,14 @@ function regenerateCaches() {
   var productsRows = []
   var pHeaders = productsCacheHeaders_()
 
+  // 「月途中の今月」と「確定している先月」を、今日の日付を使って日割り比較する
+  // 例: 今月アクセス(累計)/今日までの日数 vs 先月アクセス(累計)/先月の日数
+  var now = new Date()
+  var daysElapsedThisMonth = Math.max(1, now.getDate())
+  // 先月の日数（当月monthIndexでday=0を指定すると先月末日になる）
+  var daysInLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).getDate()
+  if (!daysInLastMonth || !isFinite(daysInLastMonth)) daysInLastMonth = 30
+
   var accessList = []
   for (var pc0 in productsAgg) accessList.push(productsAgg[pc0].access_m || 0)
   accessList.sort(function (a, b) { return a - b })
@@ -267,6 +275,9 @@ function regenerateCaches() {
     var accessLm = a.access_lm || 0
     var cvM = a.cv_m || 0
     var cvLm = a.cv_lm || 0
+    // CVは「0〜1」表現が混ざる可能性があるため、バッジ判定だけ%へ寄せる（フロントの表示ロジックと同じ）
+    var cvMPct = Math.abs(cvM) <= 1 ? cvM * 100 : cvM
+    var cvLmPct = Math.abs(cvLm) <= 1 ? cvLm * 100 : cvLm
 
     var ordersTotalM = a.orders_total_m || 0
     var ordersNewM = a.orders_new_m || 0
@@ -279,11 +290,35 @@ function regenerateCaches() {
     if (a.stock_sum > 0 && a.stock_sum <= (settings.thresholds.low_stock_threshold || 0)) badges.push("低在庫")
     if (a.sales_units_m === 0) badges.push("売上0")
     if (a.profit_m < 0) badges.push("赤字")
-    if (cvM - cvLm < 0) badges.push("CV低下")
+
+    // 新規: 日割りアクセス増減（先月 vs 今月）
+    // 運用ルール: どちらかが0のときは比較しない
+    if (accessM > 0 && accessLm > 0) {
+      var accessPerDayM = accessM / daysElapsedThisMonth
+      var accessPerDayLm = accessLm / daysInLastMonth
+      var accessPerDayChangePct = accessPerDayLm > 0 ? ((accessPerDayM - accessPerDayLm) / accessPerDayLm) * 100 : 0
+      var accessChangeTh = settings.thresholds.access_per_day_change_pct || 0
+      if (accessChangeTh > 0) {
+        if (accessPerDayChangePct >= accessChangeTh) badges.push("アクセス↑")
+        else if (accessPerDayChangePct <= -accessChangeTh) badges.push("アクセス↓")
+      }
+    }
+
+    // 新規: CV増減（パーセントポイント差）
+    // 運用ルール: どちらかが0のときは比較しない
+    if (cvMPct > 0 && cvLmPct > 0) {
+      var cvDiffPP = cvMPct - cvLmPct
+      var cvChangeTh = settings.thresholds.cv_change_pp || 0
+      if (cvChangeTh > 0) {
+        if (cvDiffPP >= cvChangeTh) badges.push("CV↑")
+        else if (cvDiffPP <= -cvChangeTh) badges.push("CV↓")
+      }
+    }
+
     if (a.min_setting_margin !== null && a.min_setting_margin < (settings.thresholds.low_margin_threshold || 0)) badges.push("要注意")
     if (topPercent > 0 && accessM >= cutoff && accessM > 0) badges.push("人気商品")
-    if (cvM >= (settings.thresholds.cv_very_high || 0)) badges.push("超高転換率")
-    else if (cvM >= (settings.thresholds.cv_high || 0)) badges.push("高転換率")
+    if (cvMPct >= (settings.thresholds.cv_very_high || 0)) badges.push("超高転換率")
+    else if (cvMPct >= (settings.thresholds.cv_high || 0)) badges.push("高転換率")
 
     productsRows.push([
       a.product_code,
